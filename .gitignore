@@ -1,3 +1,22 @@
+# Eclipse
+.cproject
+.project
+/.settings/
+
+# My
+/SDL/
+/notes/
+/deprecated/
+/notes/*
+
+# GCC
+/bin/
+/lib/
+
+# clangd
+compile_flags.txt
+compile_commands.json
+
 # Prerequisites
 *.d
 
@@ -50,6 +69,6 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
-
-# debug information files
-*.dwo
+valgrind/*
+!valgrind/*.md
+!valgrind/*.js

@@ -1,0 +1,3 @@
+[submodule "makes"]
+	path = makes
+	url = https://github.com/PaulOthar/makes.git
