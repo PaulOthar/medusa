@@ -8,6 +8,10 @@ int image_common_calculate_palette_size(asset_image* asset){
 	return asset->meta.palette_entries * 4;;
 }
 
+int image_common_calculate_image_size(asset_image* asset){
+	return asset->meta.width * asset->meta.height;
+}
+
 int image_common_validate_buffers(asset_image* asset){
 	int code = 0;
 
@@ -54,5 +58,55 @@ void image_common_load_default_palette(asset_image* asset, void* buffer){
 	}
 	default:
 		break;
+	}
+}
+
+uint32_t image_common_get_pixel(asset_image* asset, int index){
+	switch(asset->meta.bits_per_pixel){
+		case 32: return ((uint32_t*)asset->data)[index];
+		case 24:{
+			uint8_t* ptr = ((uint8_t*)asset->data) + (index * 3);
+			uint32_t result = ((uint32_t*)ptr)[0];
+			return result & 0xffffff;
+		}
+		case 8: return ((uint32_t*)asset->palette)[((uint8_t*)asset->data)[index]];
+		case 4:{
+			uint8_t byte = ((uint8_t*)asset->data)[index >> 1];
+			byte >>= 4 * (index & 1); byte &= 0xf;
+			return ((uint32_t*)asset->palette)[byte];
+		}
+		case 1:{
+			uint8_t byte = ((uint8_t*)asset->data)[index >> 8];
+			byte >>= index & 7; byte &= 1;
+			return ((uint32_t*)asset->palette)[byte];
+		}
+		default: return 0;
+	}
+}
+
+//---------------------------------------------------------------------------------------------------
+
+#include "image/pixel.h"
+
+void image_common_to_greyscale(asset_image* asset){
+	if(asset->meta.bits_per_pixel < 16){
+		uint32_t* palette = asset->palette;
+		for(int i = 0; i < asset->meta.palette_entries; i++){
+			palette[i] = image_pixel_to_greyscale(palette[i]);
+		}
+		return;
+	}
+
+	uint8_t* ptr = asset->data;
+	uint32_t* colorptr = 0;
+
+	uint8_t bytes = asset->meta.bits_per_pixel / 8;
+	uint32_t mask = (1 << asset->meta.bits_per_pixel) - 1;
+	mask = ~mask;
+
+	for(int i = 0; i < asset->data_size; i += bytes){
+		colorptr = (uint32_t*)(ptr + i);
+		uint32_t grey = image_pixel_to_greyscale(colorptr[0]);
+		colorptr[0] = (mask & colorptr[0]) | grey;
 	}
 }

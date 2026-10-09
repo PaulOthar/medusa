@@ -75,45 +75,53 @@ static int _validate_and_load_header(asset_image* asset, header_bmp* header){
 	return image_common_validate_buffers(asset);
 }
 
-static void _fix_pixels(asset_image* asset, void* src, void* dest, int size){
-	metadata_image* meta = &asset->meta;
+static void _fix_line_position(void* data, int width, int height, int bits_per_pixel){
+	uint8_t* ptr = data;
 
-	uint8_t* src_bytes = src;
-	uint8_t* dest_bytes = dest;
+	int line_bytes = (width * bits_per_pixel) / 8;
 
-	int line_size = (meta->bits_per_pixel * meta->width) / 8;
-	int height = meta->height;
+	int index_top = 0;
+	int index_bottom = (height - 1) * line_bytes;
 
-	src_bytes += size - line_size;
-
-	for(int i = 0; i < height; i++){
-		memcpy(dest_bytes, src_bytes, line_size);
-
-		dest_bytes += line_size;
-		src_bytes -= line_size;
+	for(;index_top < index_bottom; index_top += line_bytes, index_bottom -= line_bytes){
+		for(int i = 0; i < line_bytes; i++){
+			int temp = ptr[i + index_top];
+			ptr[i + index_top] = ptr[i + index_bottom];
+			ptr[i + index_bottom] = temp;
+		}
 	}
+}
 
-	if(meta->bits_per_pixel >= 16){
-		return;
-	}
+static void _fix_bit_position(void* data, int width, int height, int bits_per_pixel){
+	uint8_t* ptr = data;
 
-	dest_bytes = dest;
-
-	int mask = (1 << meta->bits_per_pixel) - 1;
-	int total_size = (meta->width * meta->height * meta->bits_per_pixel) / 8;
+	int mask = (1 << bits_per_pixel) - 1;
+	int total_size = (width * height * bits_per_pixel) / 8;
 
 	for(int i = 0; i < total_size; i++){
 		int fix_buffer = 0;
-		int byte = dest_bytes[i];
+		int byte = ptr[i];
 
-		for(int l = 0; l < 8; l += meta->bits_per_pixel){
-			fix_buffer <<= meta->bits_per_pixel;
+		for(int l = 0; l < 8; l += bits_per_pixel){
+			fix_buffer <<= bits_per_pixel;
 			fix_buffer |= byte & mask;
-			byte >>= meta->bits_per_pixel;
+			byte >>= bits_per_pixel;
 		}
 
-		dest_bytes[i] = fix_buffer;
+		ptr[i] = fix_buffer;
 	}
+}
+
+static void _fix_bitmap_asset(asset_image* asset){
+	_fix_line_position(asset->data, asset->meta.width, asset->meta.height, asset->meta.bits_per_pixel);
+	if(asset->meta.bits_per_pixel >= 16){ return; }
+	_fix_bit_position(asset->data, asset->meta.width, asset->meta.height, asset->meta.bits_per_pixel);
+}
+
+static void _fix_bitmap_anonymous(asset_image* asset, void* anon){
+	_fix_line_position(anon, asset->meta.width, asset->meta.height, asset->meta.bits_per_pixel);
+	if(asset->meta.bits_per_pixel >= 16){ return; }
+	_fix_bit_position(anon, asset->meta.width, asset->meta.height, asset->meta.bits_per_pixel);
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -144,30 +152,8 @@ int image_io_read_bmp(asset_image* asset, void* data){
 	steppable_data += image_common_calculate_palette_size(asset);
 
 	if((code & IMAGE_COMMON_CODE_MISSING_DATA) == 0){//If no data error was thrown
-		_fix_pixels(asset, steppable_data, asset->data, asset->data_size);
-	}
-
-	return code;
-}
-
-int image_io_read_bmp_file(asset_image* asset, FILE* file){
-	header_bmp header = {0}; _seek_and_read(&header, sizeof(header_bmp), 1, file, 0);
-
-	int code = _validate_and_load_header(asset, &header);
-	if(code < 0){ return code; }
-
-	int file_offset = sizeof(header_bmp);
-
-	if((code & IMAGE_COMMON_CODE_MISSING_PALT) == 0){//If no palette error was thrown
-		_seek_and_read(asset->palette, 1, asset->palette_size, file, file_offset);
-	}
-
-	file_offset += image_common_calculate_palette_size(asset);
-
-	if((code & IMAGE_COMMON_CODE_MISSING_DATA) == 0){//If no data error was thrown
-		uint8_t buffer[asset->data_size];
-		_seek_and_read(buffer, 1, asset->data_size, file, file_offset);
-		_fix_pixels(asset, buffer, asset->data, asset->data_size);
+		memcpy(asset->data, steppable_data, asset->data_size);
+		_fix_bitmap_asset(asset);
 	}
 
 	return code;
@@ -190,7 +176,29 @@ int image_io_write_bmp(asset_image* asset, void* data){
 	steppable_data += image_common_calculate_palette_size(asset);
 
 	if((code & IMAGE_COMMON_CODE_MISSING_DATA) == 0){//If no data error was thrown
-		_fix_pixels(asset, asset->data, steppable_data, asset->data_size);
+		_fix_bitmap_anonymous(asset, steppable_data);
+	}
+
+	return code;
+}
+
+int image_io_read_bmp_file(asset_image* asset, FILE* file){
+	header_bmp header = {0}; _seek_and_read(&header, sizeof(header_bmp), 1, file, 0);
+
+	int code = _validate_and_load_header(asset, &header);
+	if(code < 0){ return code; }
+
+	int file_offset = sizeof(header_bmp);
+
+	if((code & IMAGE_COMMON_CODE_MISSING_PALT) == 0){//If no palette error was thrown
+		_seek_and_read(asset->palette, 1, asset->palette_size, file, file_offset);
+	}
+
+	file_offset += image_common_calculate_palette_size(asset);
+
+	if((code & IMAGE_COMMON_CODE_MISSING_DATA) == 0){//If no data error was thrown
+		_seek_and_read(asset->data, 1, asset->data_size, file, file_offset);
+		_fix_bitmap_asset(asset);
 	}
 
 	return code;
@@ -203,6 +211,7 @@ int image_io_write_bmp_file(asset_image* asset, FILE* file){
 	int code = image_common_validate_buffers(asset);
 
 	int file_offset = sizeof(header_bmp);
+	int data_size = image_common_calculate_data_size(asset);
 	int palette_size = image_common_calculate_palette_size(asset);
 
 	if((code & IMAGE_COMMON_CODE_MISSING_PALT) == 0){//If no palette error was thrown
@@ -216,9 +225,10 @@ int image_io_write_bmp_file(asset_image* asset, FILE* file){
 	file_offset += palette_size;
 
 	if((code & IMAGE_COMMON_CODE_MISSING_DATA) == 0){//If no data error was thrown
-		uint8_t buffer[asset->data_size];
-		_fix_pixels(asset, asset->data, buffer, asset->data_size);
-		_seek_and_write(buffer, 1, asset->data_size, file, file_offset);
+		//Expensive to convert twice, but still... its needed...
+		_fix_bitmap_asset(asset);
+		_seek_and_write(asset->data, 1, data_size, file, file_offset);
+		_fix_bitmap_asset(asset);
 	}
 
 	return code;
