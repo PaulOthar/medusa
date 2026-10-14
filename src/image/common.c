@@ -5,7 +5,7 @@ int image_common_calculate_data_size(asset_image* asset){
 }
 
 int image_common_calculate_palette_size(asset_image* asset){
-	return asset->meta.palette_entries * 4;;
+	return asset->meta.palette_entries * 4;
 }
 
 int image_common_calculate_image_size(asset_image* asset){
@@ -97,16 +97,30 @@ void image_common_to_greyscale(asset_image* asset){
 		return;
 	}
 
-	uint8_t* ptr = asset->data;
-	uint32_t* colorptr = 0;
+//	uint8_t* ptr = asset->data;
+//	uint32_t* colorptr = 0;
+//
+//	uint8_t bytes = asset->meta.bits_per_pixel / 8;
+//	uint32_t mask = (1 << asset->meta.bits_per_pixel) - 1;
+//	mask = ~mask;
+//
+//	for(int i = 0; i < asset->data_size; i += bytes){
+//		colorptr = (uint32_t*)(ptr + i);
+//		uint32_t grey = image_pixel_to_greyscale(colorptr[0]);
+//		colorptr[0] = (mask & colorptr[0]) | grey;
+//	}
+
+	int size = image_common_calculate_image_size(asset);
 
 	uint8_t bytes = asset->meta.bits_per_pixel / 8;
-	uint32_t mask = (1 << asset->meta.bits_per_pixel) - 1;
-	mask = ~mask;
+	uint8_t* ptr = asset->data;
 
-	for(int i = 0; i < asset->data_size; i += bytes){
-		colorptr = (uint32_t*)(ptr + i);
-		uint32_t grey = image_pixel_to_greyscale(colorptr[0]);
-		colorptr[0] = (mask & colorptr[0]) | grey;
+	for(int i = 0; i < size; i++){
+		uint32_t color = ((uint32_t*)(ptr + (i * bytes)))[0];
+		color = image_pixel_to_greyscale(color);
+		ptr[i] = color & 0xff;
 	}
+
+	asset->meta.bits_per_pixel = 8;
+	asset->meta.palette_entries = 256;
 }

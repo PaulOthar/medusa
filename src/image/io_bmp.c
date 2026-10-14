@@ -138,6 +138,8 @@ static void _seek_and_write(void* ptr, int size, int length, FILE* file, int off
 
 //---------------------------------------------------------------------------------------------------
 
+//TODO ON READ/WRITE, THE SYSTEM MUST ACCOUNT FOR LESS THAN 4 BYTES LINE WIDTH (Pending)
+
 int image_io_read_bmp(asset_image* asset, void* data){
 	int code = _validate_and_load_header(asset, data);
 	if(code < 0){ return code; }

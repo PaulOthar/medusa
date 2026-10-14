@@ -7,8 +7,9 @@ typedef struct /*metadata_image*/{
 	uint16_t width;
 	uint16_t height;
 	uint8_t bits_per_pixel;
-	uint8_t palette_entries;
-	uint16_t reserved;
+
+	uint8_t reserved;
+	uint16_t palette_entries;
 }metadata_image;
 
 typedef struct /*asset_image*/{
