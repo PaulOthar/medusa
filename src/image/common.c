@@ -1,21 +1,21 @@
-#include "image/common.h"
+#include "image/medusa_image_common.h"
 
-int image_common_calculate_data_size(asset_image* asset){
+int medusa_image_common_calculate_data_size(asset_image* asset){
 	return (asset->meta.width * asset->meta.height * asset->meta.bits_per_pixel / 8);
 }
 
-int image_common_calculate_palette_size(asset_image* asset){
+int medusa_image_common_calculate_palette_size(asset_image* asset){
 	return asset->meta.palette_entries * 4;
 }
 
-int image_common_calculate_image_size(asset_image* asset){
+int medusa_image_common_calculate_image_size(asset_image* asset){
 	return asset->meta.width * asset->meta.height;
 }
 
-int image_common_validate_buffers(asset_image* asset){
+int medusa_image_common_validate_buffers(asset_image* asset){
 	int code = 0;
 
-	int data_size = image_common_calculate_data_size(asset);
+	int data_size = medusa_image_common_calculate_data_size(asset);
 	if(!asset->data && data_size){
 		code |= IMAGE_COMMON_CODE_MISSING_DATA;
 		asset->data_size = data_size;
@@ -23,7 +23,7 @@ int image_common_validate_buffers(asset_image* asset){
 		code |= IMAGE_COMMON_CODE_INVALID_DATA;
 	}
 
-	int palette_size = image_common_calculate_palette_size(asset);
+	int palette_size = medusa_image_common_calculate_palette_size(asset);
 	if(!asset->palette && palette_size){
 		code |= IMAGE_COMMON_CODE_MISSING_PALT;
 		asset->palette_size = palette_size;
@@ -41,7 +41,7 @@ static uint32_t default_colors[] = {
 	0x00ffff, 0x00aaaa, 0x005555, 0x002a2a
 };
 
-void image_common_load_default_palette(asset_image* asset, void* buffer){
+void medusa_image_common_load_default_palette(asset_image* asset, void* buffer){
 	uint32_t* dest_word = buffer;
 
 	switch(asset->meta.bits_per_pixel){
@@ -61,9 +61,13 @@ void image_common_load_default_palette(asset_image* asset, void* buffer){
 	}
 }
 
-uint32_t image_common_get_pixel(asset_image* asset, int index){
+uint32_t medusa_image_common_get_pixel(asset_image* asset, int index){
 	switch(asset->meta.bits_per_pixel){
-		case 32: return ((uint32_t*)asset->data)[index];
+		case 32:{
+			uint32_t* word_data = (uint32_t*)asset->data;
+			return word_data[index];
+//			return ((uint32_t*)asset->data)[index];
+		}
 		case 24:{
 			uint8_t* ptr = ((uint8_t*)asset->data) + (index * 3);
 			uint32_t result = ((uint32_t*)ptr)[0];
@@ -86,13 +90,13 @@ uint32_t image_common_get_pixel(asset_image* asset, int index){
 
 //---------------------------------------------------------------------------------------------------
 
-#include "image/pixel.h"
+#include "../../include/image/medusa_image_pixel.h"
 
-void image_common_to_greyscale(asset_image* asset){
+void medusa_image_common_to_greyscale(asset_image* asset){
 	if(asset->meta.bits_per_pixel < 16){
 		uint32_t* palette = asset->palette;
 		for(int i = 0; i < asset->meta.palette_entries; i++){
-			palette[i] = image_pixel_to_greyscale(palette[i]);
+			palette[i] = medusa_image_pixel_to_greyscale(palette[i]);
 		}
 		return;
 	}
@@ -110,14 +114,14 @@ void image_common_to_greyscale(asset_image* asset){
 //		colorptr[0] = (mask & colorptr[0]) | grey;
 //	}
 
-	int size = image_common_calculate_image_size(asset);
+	int size = medusa_image_common_calculate_image_size(asset);
 
 	uint8_t bytes = asset->meta.bits_per_pixel / 8;
 	uint8_t* ptr = asset->data;
 
 	for(int i = 0; i < size; i++){
 		uint32_t color = ((uint32_t*)(ptr + (i * bytes)))[0];
-		color = image_pixel_to_greyscale(color);
+		color = medusa_image_pixel_to_greyscale(color);
 		ptr[i] = color & 0xff;
 	}
 

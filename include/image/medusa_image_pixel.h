@@ -3,6 +3,6 @@
 
 #include <stdint.h>
 
-uint32_t image_pixel_to_greyscale(uint32_t color);
+uint32_t medusa_image_pixel_to_greyscale(uint32_t color);
 
 #endif

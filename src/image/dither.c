@@ -1,28 +1,29 @@
-#include "image/dither.h"
-#include "image/pixel.h"
 #include <stdlib.h>
+
+#include "medusa_util.h"
+#include "image/medusa_image_dither.h"
+#include "image/medusa_image_pixel.h"
 //I really should not be depending on malloc for big buffers....... (plys, future me, fix it)
 
 void _greyscale_8bpp(asset_image* asset, int16_t* gsb, int size){
 	for(int i = 0; i < size; i++){
-		uint32_t pixel = image_common_get_pixel(asset, i);
-		pixel = image_pixel_to_greyscale(pixel);
+		uint32_t pixel = medusa_image_common_get_pixel(asset, i);
+		pixel = medusa_image_pixel_to_greyscale(pixel);
 		gsb[i] = pixel & 0xff;
 	}
 }
 
 void _collapse_image_dither(asset_image* asset, int16_t* gs){
 	uint8_t* data = asset->data;
+	for(int i = 0; i < asset->data_size; i++){ data[i] = 0; }
 
-	for(int y = 0, byte = 0; y < asset->meta.height; y++){
+	for(int y = 0, byte = 0, pushed = 0; y < asset->meta.height; y++){
 		int ysum = asset->meta.width * y;
 		for(int x = 0; x < asset->meta.width; byte++){
-			uint8_t line = 0;
-			for(int b = 0; b < 8 && x < asset->meta.width; b++, x++){
+			for(int b = 0; b < 8 && x < asset->meta.width; b++, x++, pushed++){
 				uint8_t bit = gs[x + ysum] && 1;
-				line |= bit << b;
+				medusa_util_push_bit(asset->data, bit, pushed);
 			}
-			data[byte] = line;
 		}
 	}
 
@@ -32,8 +33,8 @@ void _collapse_image_dither(asset_image* asset, int16_t* gs){
 
 //---------------------------------------------------------------------------------------------------
 
-void image_dither_stupid(asset_image* asset){
-	int size = image_common_calculate_image_size(asset);
+void medusa_image_dither_stupid(asset_image* asset){
+	int size = medusa_image_common_calculate_image_size(asset);
 	int16_t* gs = (int16_t*)malloc(size * sizeof(uint16_t));
 	_greyscale_8bpp(asset, gs, size);
 
@@ -43,7 +44,7 @@ void image_dither_stupid(asset_image* asset){
 	free(gs);
 }
 
-void image_dither_gridded(asset_image* asset){
+void medusa_image_dither_gridded(asset_image* asset){
 	int width = asset->meta.width, height = asset->meta.height, size = width * height;
 	int16_t* gs = (int16_t*)malloc(size * sizeof(uint16_t));
 	_greyscale_8bpp(asset, gs, size);
@@ -76,7 +77,7 @@ void image_dither_gridded(asset_image* asset){
 	free(gs);
 }
 
-void image_dither_floyd_steinberg(asset_image* asset){
+void medusa_image_dither_floyd_steinberg(asset_image* asset){
 	int width = asset->meta.width, height = asset->meta.height, size = width * height;
 	int16_t* gs = (int16_t*)malloc(size * sizeof(uint16_t));
 	_greyscale_8bpp(asset, gs, size);
@@ -106,7 +107,7 @@ void image_dither_floyd_steinberg(asset_image* asset){
 	free(gs);
 }
 
-void image_dither_atkinson(asset_image* asset){
+void medusa_image_dither_atkinson(asset_image* asset){
 	int width = asset->meta.width, height = asset->meta.height, size = width * height;
 	int16_t* gs = (int16_t*)malloc(size * sizeof(uint16_t));
 	_greyscale_8bpp(asset, gs, size);
@@ -136,7 +137,7 @@ void image_dither_atkinson(asset_image* asset){
 	free(gs);
 }
 
-void image_dither_jarvis_judice_ninke(asset_image* asset){
+void medusa_image_dither_jarvis_judice_ninke(asset_image* asset){
 	int width = asset->meta.width, height = asset->meta.height, size = width * height;
 	int16_t* gs = (int16_t*)malloc(size * sizeof(uint16_t));
 	_greyscale_8bpp(asset, gs, size);
