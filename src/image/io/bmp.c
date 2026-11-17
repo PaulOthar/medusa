@@ -2,6 +2,7 @@
 
 #include "medusa_util.h"
 #include "image/medusa_image_io.h"
+#include "image/medusa_image_handler.h"
 
 #pragma pack(push, 1)
 typedef struct /*header_bmp*/{
@@ -74,7 +75,7 @@ static int _validate_and_load_header(asset_image* asset, header_bmp* header){
 	if(header->magic_number != 0x4D42){ return -1; }
 	_header_to_asset(asset, header);
 
-	return medusa_image_common_validate_buffers(asset);
+	return medusa_image_validate_buffers(asset);
 }
 
 static void _fix_line_position(void* data, int width, int height, int bits_per_pixel){
@@ -182,7 +183,7 @@ static int _read_file_lines(asset_image* asset, FILE* file, int offset){
 	padding = (32 - padding) % 32;
 
 	if(!padding){
-		int data_size = medusa_image_common_calculate_data_size(asset);
+		int data_size = medusa_image_calc_data_size(asset);
 		_seek_and_read(asset->data, 1, data_size, file, offset);
 		_fix_bitmap_asset(asset);
 		return 0;
@@ -199,7 +200,7 @@ static int _write_file_lines(asset_image* asset, FILE* file, int offset){
 	padding = (32 - padding) % 32;
 
 	if(!padding){
-		int data_size = medusa_image_common_calculate_data_size(asset);
+		int data_size = medusa_image_calc_data_size(asset);
 		_fix_bitmap_asset(asset);//Expensive to convert twice, but still... its needed...
 		_seek_and_write(asset->data, 1, data_size, file, offset);
 		_fix_bitmap_asset(asset);
@@ -260,7 +261,7 @@ int medusa_image_io_read_bmp(asset_image* asset, void* data){
 		memcpy(asset->palette, steppable_data, asset->palette_size);
 	}
 
-	steppable_data += medusa_image_common_calculate_palette_size(asset);
+	steppable_data += medusa_image_calc_palette_size(asset);
 
 	if((code & IMAGE_COMMON_CODE_MISSING_DATA) == 0){//If no data error was thrown
 		memcpy(asset->data, steppable_data, asset->data_size);
@@ -273,7 +274,7 @@ int medusa_image_io_read_bmp(asset_image* asset, void* data){
 int medusa_image_io_write_bmp(asset_image* asset, void* data){
 	_asset_to_header(asset, data);
 
-	int code = medusa_image_common_validate_buffers(asset);
+	int code = medusa_image_validate_buffers(asset);
 
 	uint8_t* steppable_data = data;
 	steppable_data += sizeof(header_bmp);
@@ -281,10 +282,10 @@ int medusa_image_io_write_bmp(asset_image* asset, void* data){
 	if((code & IMAGE_COMMON_CODE_MISSING_PALT) == 0){//If no palette error was thrown
 		memcpy(steppable_data, asset->palette, asset->palette_size);
 	} else if(asset->meta.palette_entries){
-		medusa_image_common_load_default_palette(asset, steppable_data);
+		medusa_image_handler_load_default_palette(asset, steppable_data);
 	}
 
-	steppable_data += medusa_image_common_calculate_palette_size(asset);
+	steppable_data += medusa_image_calc_palette_size(asset);
 
 	if((code & IMAGE_COMMON_CODE_MISSING_DATA) == 0){//If no data error was thrown
 		_fix_bitmap_anonymous(asset, steppable_data);
@@ -305,7 +306,7 @@ int medusa_image_io_read_bmp_file(asset_image* asset, FILE* file){
 		_seek_and_read(asset->palette, 1, asset->palette_size, file, file_offset);
 	}
 
-	file_offset += medusa_image_common_calculate_palette_size(asset);
+	file_offset += medusa_image_calc_palette_size(asset);
 
 	if((code & IMAGE_COMMON_CODE_MISSING_DATA) == 0){//If no data error was thrown
 		if(header.bits_per_pixel == 32){ file_offset = header.header_offset; }
@@ -319,16 +320,16 @@ int medusa_image_io_write_bmp_file(asset_image* asset, FILE* file){
 	header_bmp header = {0}; _asset_to_header(asset, &header);
 	_seek_and_write(&header, sizeof(header_bmp), 1, file, 0);
 
-	int code = medusa_image_common_validate_buffers(asset);
+	int code = medusa_image_validate_buffers(asset);
 
 	int file_offset = sizeof(header_bmp);
-	int palette_size = medusa_image_common_calculate_palette_size(asset);
+	int palette_size = medusa_image_calc_palette_size(asset);
 
 	if((code & IMAGE_COMMON_CODE_MISSING_PALT) == 0){//If no palette error was thrown
 		_seek_and_write(asset->palette, 1, asset->palette_size, file, file_offset);
 	} else if(asset->meta.palette_entries){
 		uint8_t palette[palette_size];
-		medusa_image_common_load_default_palette(asset, palette);
+		medusa_image_handler_load_default_palette(asset, palette);
 		_seek_and_write(palette, 1, palette_size, file, file_offset);
 	}
 

@@ -1,25 +1,25 @@
 #include <stdlib.h>
 
 #include "medusa_util.h"
-#include "image/medusa_image_dither.h"
-#include "image/medusa_image_pixel.h"
+#include "image/medusa_image_handler.h"
+#include "image/medusa_image_util.h"
 //I really should not be depending on malloc for big buffers....... (plys, future me, fix it)
 
-void _greyscale_8bpp(asset_image* asset, int16_t* gsb, int size){
+void _greyscale_16bpp(asset_image* asset, int16_t* gsb, int size){
+	medusa_image_get_function get_pixel = medusa_image_function_get_pixel(asset->meta.bits_per_pixel);
+
 	for(int i = 0; i < size; i++){
-		uint32_t pixel = medusa_image_common_get_pixel(asset, i);
-		pixel = medusa_image_pixel_to_greyscale(pixel);
+		uint32_t pixel = get_pixel(asset, i);
+		pixel = medusa_image_util_pixel_to_greyscale(pixel);
 		gsb[i] = pixel & 0xff;
 	}
 }
 
 void _collapse_image_dither(asset_image* asset, int16_t* gs){
-	uint8_t* data = asset->data;
-	for(int i = 0; i < asset->data_size; i++){ data[i] = 0; }
-
 	for(int y = 0, byte = 0, pushed = 0; y < asset->meta.height; y++){
 		int ysum = asset->meta.width * y;
 		for(int x = 0; x < asset->meta.width; byte++){
+			gs[pushed >> 3] = 0;
 			for(int b = 0; b < 8 && x < asset->meta.width; b++, x++, pushed++){
 				uint8_t bit = gs[x + ysum] && 1;
 				medusa_util_push_bit(asset->data, bit, pushed);
@@ -33,21 +33,24 @@ void _collapse_image_dither(asset_image* asset, int16_t* gs){
 
 //---------------------------------------------------------------------------------------------------
 
-void medusa_image_dither_stupid(asset_image* asset){
-	int size = medusa_image_common_calculate_image_size(asset);
-	int16_t* gs = (int16_t*)malloc(size * sizeof(uint16_t));
-	_greyscale_8bpp(asset, gs, size);
+#define GREY_SCALE_BLOCK_START \
+	int width = src->meta.width, height = src->meta.height, size = width * height;\
+	int self_contained = dest->meta.bits_per_pixel >= 16;\
+	int16_t* gs = (int16_t*)(self_contained ? dest->data : malloc(size * sizeof(uint16_t)));\
+	_greyscale_16bpp(src, gs, size);
 
+#define GREY_SCALE_BLOCK_END \
+	_collapse_image_dither(dest, gs);\
+	if(!self_contained){ free(gs); }
+
+void medusa_image_handler_dither_stupid(asset_image* src, asset_image* dest){
+	GREY_SCALE_BLOCK_START;
 	for(int i = 0; i < size; i++){ gs[i] = (gs[i] >> 7) * 0xff; }
-
-	_collapse_image_dither(asset, gs);
-	free(gs);
+	GREY_SCALE_BLOCK_END;
 }
 
-void medusa_image_dither_gridded(asset_image* asset){
-	int width = asset->meta.width, height = asset->meta.height, size = width * height;
-	int16_t* gs = (int16_t*)malloc(size * sizeof(uint16_t));
-	_greyscale_8bpp(asset, gs, size);
+void medusa_image_handler_dither_gridded(asset_image* src, asset_image* dest){
+	GREY_SCALE_BLOCK_START;
 
 	int grade = 256 / 7;
 
@@ -73,14 +76,11 @@ void medusa_image_dither_gridded(asset_image* asset){
 		}
 	}
 
-	_collapse_image_dither(asset, gs);
-	free(gs);
+	GREY_SCALE_BLOCK_END;
 }
 
-void medusa_image_dither_floyd_steinberg(asset_image* asset){
-	int width = asset->meta.width, height = asset->meta.height, size = width * height;
-	int16_t* gs = (int16_t*)malloc(size * sizeof(uint16_t));
-	_greyscale_8bpp(asset, gs, size);
+void medusa_image_handler_dither_floyd_steinberg(asset_image* src, asset_image* dest){
+	GREY_SCALE_BLOCK_START;
 
 	for(int y = 0, yptr = 0; y < height; y++, yptr += width){
 		for(int x = 0; x < width; x++){
@@ -103,14 +103,11 @@ void medusa_image_dither_floyd_steinberg(asset_image* asset){
 		}
 	}
 
-	_collapse_image_dither(asset, gs);
-	free(gs);
+	GREY_SCALE_BLOCK_END;
 }
 
-void medusa_image_dither_atkinson(asset_image* asset){
-	int width = asset->meta.width, height = asset->meta.height, size = width * height;
-	int16_t* gs = (int16_t*)malloc(size * sizeof(uint16_t));
-	_greyscale_8bpp(asset, gs, size);
+void medusa_image_handler_dither_atkinson(asset_image* src, asset_image* dest){
+	GREY_SCALE_BLOCK_START;
 
 	for(int y = 0, yptr = 0; y < height; y++, yptr += width){
 		for(int x = 0; x < width; x++){
@@ -133,14 +130,11 @@ void medusa_image_dither_atkinson(asset_image* asset){
 		}
 	}
 
-	_collapse_image_dither(asset, gs);
-	free(gs);
+	GREY_SCALE_BLOCK_END;
 }
 
-void medusa_image_dither_jarvis_judice_ninke(asset_image* asset){
-	int width = asset->meta.width, height = asset->meta.height, size = width * height;
-	int16_t* gs = (int16_t*)malloc(size * sizeof(uint16_t));
-	_greyscale_8bpp(asset, gs, size);
+void medusa_image_handler_dither_jarvis_judice_ninke(asset_image* src, asset_image* dest){
+	GREY_SCALE_BLOCK_START;
 
 	for(int y = 0, yptr = 0; y < height; y++, yptr += width){
 		for(int x = 0; x < width; x++){
@@ -176,7 +170,6 @@ void medusa_image_dither_jarvis_judice_ninke(asset_image* asset){
 		}
 	}
 
-	_collapse_image_dither(asset, gs);
-	free(gs);
+	GREY_SCALE_BLOCK_END;
 }
 
