@@ -1,4 +1,4 @@
-#include "image/medusa_image.h"
+#include "../../../include/medusa_image/common.h"
 
 void medusa_image_init_asset(asset_image* asset, int width, int height, int bits_per_pixel){
 	int data_size = (width * height * bits_per_pixel) / 8;
@@ -6,13 +6,15 @@ void medusa_image_init_asset(asset_image* asset, int width, int height, int bits
 
 	asset->data = 0; asset->palette = 0;
 	asset->data_size = data_size;
+	asset->effective_data_size = asset->data_size;
 	asset->palette_size = palette_size * 4;
+	asset->effective_palette_size = asset->palette_size;
 
 	asset->meta.width = width;
 	asset->meta.height = height;
 	asset->meta.bits_per_pixel = bits_per_pixel;
 	asset->meta.reserved = 0;
-	asset->meta.palette_entries = palette_size;
+	asset->meta.palette_entries = 0;
 }
 
 int medusa_image_create_asset(int width, int height, int bits_per_pixel, void* block){

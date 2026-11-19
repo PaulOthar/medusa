@@ -9,14 +9,15 @@ typedef struct /*metadata_image*/{
 	uint8_t bits_per_pixel;
 
 	uint8_t reserved;
-	uint16_t palette_entries;
+	uint16_t palette_entries;//it is 16 bits in order to support the value 256 for 8bpp
 }metadata_image;
 
 typedef struct /*asset_image*/{
 	metadata_image meta;
 
-	void* palette; int palette_size;
-	void* data; int data_size;
+	void* palette; void* data;
+	int palette_size; int effective_palette_size;
+	int data_size; int effective_data_size;
 }asset_image;
 
 enum medusa_image_io_code{
@@ -33,11 +34,9 @@ enum medusa_image_io_code{
 // Metadata [Calculation & Validation]
 //---------------------------------------------------------------------------------------------------
 
-int medusa_image_calc_data_size(asset_image* asset);
-
-int medusa_image_calc_palette_size(asset_image* asset);
-
 int medusa_image_calc_image_size(asset_image* asset);
+
+void medusa_image_update_effective_sizes(asset_image* asset);
 
 int medusa_image_validate_buffers(asset_image* asset);
 
@@ -85,7 +84,5 @@ uint32_t medusa_image_set_pixel_24bpp(asset_image* asset, int pos, uint32_t colo
 void medusa_image_init_asset(asset_image* asset, int width, int height, int bits_per_pixel);
 
 int medusa_image_create_asset(int width, int height, int bits_per_pixel, void* block);
-
-void medusa_image_load_default_palette(asset_image* asset, void* buffer);
 
 #endif

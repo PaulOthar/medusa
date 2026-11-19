@@ -1,8 +1,8 @@
 #include <stdlib.h>
 
+#include "../../../include/medusa_image/handler.h"
+#include "../../../include/medusa_image/util.h"
 #include "medusa_util.h"
-#include "image/medusa_image_handler.h"
-#include "image/medusa_image_util.h"
 //I really should not be depending on malloc for big buffers....... (plys, future me, fix it)
 
 void _greyscale_16bpp(asset_image* asset, int16_t* gsb, int size){

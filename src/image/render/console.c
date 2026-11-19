@@ -1,5 +1,6 @@
-#include "image/medusa_image_render.h"
 #include <stdio.h>
+#include "../../../include/medusa_image/render.h"
+#include "../../../include/medusa_image/util.h"
 
 #define PIXEL_CHAR "▀"
 
@@ -30,12 +31,43 @@ static int _render_dual_line(asset_image* asset, int index, int width){
 	return index_2;
 }
 
+static int _render_line(asset_image* asset, int index, int width){
+	medusa_image_get_function get = medusa_image_function_get_pixel(asset->meta.bits_per_pixel);
+
+	uint32_t prev_top = 0; COLOR_TOP(prev_top);
+	for(int i = 0; i < width; i++, index++){
+		uint32_t top = get(asset, index);
+
+		if(top != prev_top){ prev_top = top; COLOR_TOP(prev_top); }
+
+		printf(PIXEL_CHAR);
+	}
+
+	COLOR_RESET;
+	printf("\n");
+
+	return index;
+}
+
 void medusa_image_render_console_ansi(asset_image* asset){
 	int lines = asset->meta.height >> 1;
 	int width = asset->meta.width;
 	int index = 0;
 
+	void* prev_palette = asset->palette;
+	int ideal_palette_size = medusa_image_util_format_placeholder_palette(asset, 0);
+	uint8_t placeholder_palette[ideal_palette_size];
+	if(asset->palette_size < ideal_palette_size){
+		medusa_image_util_format_placeholder_palette(asset, placeholder_palette);
+	}
+
 	for(int i = 0; i < lines; i++){
 		index = _render_dual_line(asset, index, width);
 	}
+
+	if(asset->meta.height & 1){
+		_render_line(asset, index, width);
+	}
+
+	asset->palette = prev_palette;
 }

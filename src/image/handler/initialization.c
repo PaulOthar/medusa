@@ -1,4 +1,4 @@
-#include "image/medusa_image_handler.h"
+#include "../../../include/medusa_image/handler.h"
 
 int medusa_image_handler_clear(asset_image* asset){
 	int code = medusa_image_validate_buffers(asset);
@@ -18,23 +18,34 @@ static uint32_t default_colors[] = {
 	0x00ffff, 0x00aaaa, 0x005555, 0x002a2a
 };
 
-void medusa_image_handler_load_default_palette(asset_image* asset, void* buffer){
-	uint32_t* dest_word = buffer;
-	if(!buffer){ return; }
+int medusa_image_handler_load_default_palette(asset_image* asset){
+	uint32_t* buff = asset->palette;
+	if(!buff){ return 0; }
+
+	int size = (asset->palette_size) / 4;
+	int col = 0;
+	int e = 0;
 
 	switch(asset->meta.bits_per_pixel){
-	case 1:
-		dest_word[0] = 0;
-		dest_word[1] = -1;
-		break;
-	case 4:
-		for(int i = 0; i < 16; i++){ dest_word[i] = default_colors[i]; }
-		break;
-	case 8:{//Pretty much grey scale
-		for(int i = 0; i < 256; i++){ dest_word[i] = i * 0x010101; }
-		break;
+		case 1:
+			size = size > 2 ? 2 : size;
+			for(; e < size; e++, col += 0xffffff){ buff[e] = col; }
+			break;
+		case 4:
+			size = size > 16 ? 16 : size;
+			for(; e < size; e++){ buff[e] = default_colors[e]; }
+			break;
+		case 8://Pretty much grey scale
+			size = size > 256 ? 256 : size;
+			for(; e < size; e++, col += 0x010101){ buff[e] = col; }
+			break;
+		default:
+			return e;
 	}
-	default:
-		break;
-	}
+
+	asset->effective_palette_size = size * 4;
+	asset->meta.palette_entries = size;
+
+	return e;
 }
+

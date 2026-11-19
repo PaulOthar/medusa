@@ -1,7 +1,7 @@
 #ifndef MEDUSA_IMAGE_HANDLER
 #define MEDUSA_IMAGE_HANDLER
 
-#include "medusa_image.h"
+#include "common.h"
 
 //---------------------------------------------------------------------------------------------------
 // Initialization
@@ -9,7 +9,7 @@
 
 int medusa_image_handler_clear(asset_image* asset);
 
-void medusa_image_handler_load_default_palette(asset_image* asset, void* buffer);
+int medusa_image_handler_load_default_palette(asset_image* asset);
 
 //---------------------------------------------------------------------------------------------------
 // Manipulation
@@ -17,7 +17,10 @@ void medusa_image_handler_load_default_palette(asset_image* asset, void* buffer)
 
 int medusa_image_handler_greyscale(asset_image* src, asset_image* dest);
 
-int medusa_image_handler_stack(asset_image* src, asset_image* dest);
+int medusa_image_handler_flip_vertical(asset_image* src, asset_image* dest);
+//int medusa_image_handler_flip_horizontal(asset_image* src, asset_image* dest);
+
+int medusa_image_handler_stack(asset_image* src, asset_image* dest, int x_off, int y_off);
 
 //---------------------------------------------------------------------------------------------------
 // Dither

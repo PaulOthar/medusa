@@ -1,8 +1,7 @@
-#include <string.h>
-
+#include "../../../include/medusa_image/handler.h"
+#include "../../../include/medusa_image/handler.h"
+#include "../../../include/medusa_image/io.h"
 #include "medusa_util.h"
-#include "image/medusa_image_io.h"
-#include "image/medusa_image_handler.h"
 
 #pragma pack(push, 1)
 typedef struct /*header_bmp*/{
@@ -75,269 +74,164 @@ static int _validate_and_load_header(asset_image* asset, header_bmp* header){
 	if(header->magic_number != 0x4D42){ return -1; }
 	_header_to_asset(asset, header);
 
-	return medusa_image_validate_buffers(asset);
-}
-
-static void _fix_line_position(void* data, int width, int height, int bits_per_pixel){
-	uint8_t* ptr = data;
-
-	int line_bytes = (width * bits_per_pixel) / 8;
-
-	int index_top = 0;
-	int index_bottom = (height - 1) * line_bytes;
-
-	for(;index_top < index_bottom; index_top += line_bytes, index_bottom -= line_bytes){
-		for(int i = 0; i < line_bytes; i++){
-			int temp = ptr[i + index_top];
-			ptr[i + index_top] = ptr[i + index_bottom];
-			ptr[i + index_bottom] = temp;
-		}
-	}
-}
-
-static void _fix_byte_orientation(void* data, int index, int bits_per_pixel){
-	uint8_t* ptr = data;
-	int mask = (1 << bits_per_pixel) - 1;
-
-	int fix_buffer = 0;
-	int byte = ptr[index];
-
-	for(int l = 0; l < 8; l += bits_per_pixel){
-		fix_buffer <<= bits_per_pixel;
-		fix_buffer |= byte & mask;
-		byte >>= bits_per_pixel;
-	}
-
-	ptr[index] = fix_buffer;
-}
-
-static void _fix_bytes_orientation(void* data, int count, int bits_per_pixel){
-	if(bits_per_pixel >= 16){ return; }
-	for(int i = 0; i < count; i++){ _fix_byte_orientation(data, i, bits_per_pixel); }
-}
-
-static void _fix_bit_position(void* data, int width, int height, int bits_per_pixel){
-	uint8_t* ptr = data;
-
-	int mask = (1 << bits_per_pixel) - 1;
-	int total_size = (width * height * bits_per_pixel) / 8;
-
-	for(int i = 0; i < total_size; i++){
-		int fix_buffer = 0;
-		int byte = ptr[i];
-
-		for(int l = 0; l < 8; l += bits_per_pixel){
-			fix_buffer <<= bits_per_pixel;
-			fix_buffer |= byte & mask;
-			byte >>= bits_per_pixel;
-		}
-
-		ptr[i] = fix_buffer;
-	}
-}
-
-static void _fix_bitmap_asset(asset_image* asset){
-	_fix_line_position(asset->data, asset->meta.width, asset->meta.height, asset->meta.bits_per_pixel);
-	if(asset->meta.bits_per_pixel >= 16){ return; }
-	_fix_bit_position(asset->data, asset->meta.width, asset->meta.height, asset->meta.bits_per_pixel);
-}
-
-static void _fix_bitmap_anonymous(asset_image* asset, void* anon){
-	_fix_line_position(anon, asset->meta.width, asset->meta.height, asset->meta.bits_per_pixel);
-	if(asset->meta.bits_per_pixel >= 16){ return; }
-	_fix_bit_position(anon, asset->meta.width, asset->meta.height, asset->meta.bits_per_pixel);
-}
-
-//---------------------------------------------------------------------------------------------------
-
-int _format_image_line(asset_image* asset, int line_index, void* buffer){
-	int line_size = asset->meta.width * asset->meta.bits_per_pixel;
-
-	if(!buffer){
-		int padding = (asset->meta.width * asset->meta.bits_per_pixel) % 32;//Each line must be 4 bytes aligned
-		padding = (32 - padding) % 32;
-		return (padding + line_size) / 8;
-	}
-
-	int offset = line_size * line_index;
-
-	medusa_util_copy_bits(asset->data, buffer, offset, line_size);
-
 	return 0;
 }
 
 //---------------------------------------------------------------------------------------------------
 
-static void _seek_and_read(void* ptr, int size, int length, FILE* file, int offset){
-	fseek(file, offset, SEEK_SET);
-	fread(ptr, size, length, file);
+static void _fix_bitmap_orientations(asset_image* asset){
+	//Fixes line orientation (flipping it upside down)
+	medusa_image_handler_flip_vertical(asset, asset);
+	if(asset->meta.bits_per_pixel >= 16){ return; }
+	//Fixes bits orientations (0xA7 becomes 0x7A in 4bpp)
+	medusa_util_switch_bits_positions(asset->data, asset->data_size, asset->meta.bits_per_pixel);
 }
 
-static void _seek_and_write(void* ptr, int size, int length, FILE* file, int offset){
-	fseek(file, offset, SEEK_SET);
-	fwrite(ptr, size, length, file);
-}
+//---------------------------------------------------------------------------------------------------
 
-static int _read_file_lines(asset_image* asset, FILE* file, int offset){
+static int _read_lines(asset_image* asset, void* file, int offset, medusa_util_rw reader){
 	int padding = (asset->meta.width * asset->meta.bits_per_pixel) % 32;//Each line must be 4 bytes aligned
 	padding = (32 - padding) % 32;
 
 	if(!padding){
-		int data_size = medusa_image_calc_data_size(asset);
-		_seek_and_read(asset->data, 1, data_size, file, offset);
-		_fix_bitmap_asset(asset);
+		int data_size = asset->effective_data_size;
+		reader(asset->data, 1, data_size, file, offset);
+		_fix_bitmap_orientations(asset);
 		return 0;
 	}
 
-	return IMAGE_COMMON_CODE_INVALID_SIZE;//TODO implement any type reading
-
-//	int lines = asset->meta.height;
-//	int line_size = asset->meta.width * asset->meta.bits_per_pixel;
-}
-
-static int _write_file_lines(asset_image* asset, FILE* file, int offset){
-	int padding = (asset->meta.width * asset->meta.bits_per_pixel) % 32;//Each line must be 4 bytes aligned
-	padding = (32 - padding) % 32;
-
-	if(!padding){
-		int data_size = medusa_image_calc_data_size(asset);
-		_fix_bitmap_asset(asset);//Expensive to convert twice, but still... its needed...
-		_seek_and_write(asset->data, 1, data_size, file, offset);
-		_fix_bitmap_asset(asset);
-		return 0;
-	}
-
-//	return IMAGE_COMMON_CODE_INVALID_SIZE;//TODO implement any type writting
+	/* If it reached here, then we have a file with an unpadded size of pixels
+	The solution is to:
+		1. Extract all bits in a line, to a padded buffer (multiple of 32 bits).
+		2. Pack all the unpadded bits to the data buffer.
+	*/
 
 	int lines = asset->meta.height;
-	int line_bytes = _format_image_line(asset, 0, 0);
+	int line_size = asset->meta.width * asset->meta.bits_per_pixel;
+	int line_bytes = (padding + line_size) / 8;
 	uint8_t line_buffer[line_bytes];
 
 	offset += line_bytes * (lines - 1);
+	int data_addr = 0;
 	for(int i = 0; i < lines; i++){
-		_format_image_line(asset, i, line_buffer);
-		_fix_bytes_orientation(line_buffer, line_bytes, asset->meta.bits_per_pixel);
-		_seek_and_write(line_buffer, 1, line_bytes, file, offset);
+		reader(line_buffer, 1, line_bytes, file, offset);
+		medusa_util_switch_bits_positions(line_buffer, line_bytes, asset->meta.bits_per_pixel);
+		medusa_util_copy_bits_new(line_buffer, 0, asset->data, data_addr, line_size);
+		data_addr += line_size;
 		offset -= line_bytes;
 	}
 
 	return 0;
+}
 
-//	int lines = asset->meta.height;
-//	int line_size = asset->meta.width * asset->meta.bits_per_pixel;
-//
-//	int line_bytes = (padding + line_size) / 8;
-//	uint8_t line_buffer[line_bytes];
-//
-//	offset += line_bytes * (lines - 1);
-//
-//	uint8_t* data = asset->data;
-//	int datoff = 0;
-//	for(int i = 0; i < lines; i++){
-//		_cpy_b(data, line_buffer, datoff, line_size); datoff += line_size;
-//		if(asset->meta.bits_per_pixel < 16){
-//			for(int l = 0; l < line_bytes; l++){ _fix_byte_orientation(line_buffer, l, asset->meta.bits_per_pixel); }
-//		}
-//
-//		_seek_and_write(line_buffer, 1, line_bytes, file, offset);
-//		offset -= line_bytes;
-//	}
-//
-//	return 0;
+static int _write_lines(asset_image* asset, void* file, int offset, medusa_util_rw writter){
+	int padding = (asset->meta.width * asset->meta.bits_per_pixel) % 32;//Each line must be 4 bytes aligned
+	padding = (32 - padding) % 32;
+
+	if(!padding){
+		int data_size = asset->effective_data_size;
+		_fix_bitmap_orientations(asset);
+		writter(asset->data, 1, data_size, file, offset);
+		_fix_bitmap_orientations(asset);
+		//We called it twice, so the in memory image would not end up screwed
+		return 0;
+	}
+
+	/* If it reached here, then we have a file with an unpadded size of pixels
+	The solution is to:
+		1. Extract all bits in a line, to a padded buffer (multiple of 32 bits).
+		2. Write said buffer to the file.
+	*/
+
+	int lines = asset->meta.height;
+	int line_size = asset->meta.width * asset->meta.bits_per_pixel;
+	int line_bytes = (padding + line_size) / 8;
+	uint8_t line_buffer[line_bytes];
+
+	int data_addr = 0; offset += line_bytes * (lines - 1);
+	for(int i = 0; i < lines; i++){
+		medusa_util_copy_bits_new(asset->data, data_addr, line_buffer, 0, line_size);
+		medusa_util_switch_bits_positions(line_buffer, line_bytes, asset->meta.bits_per_pixel);
+		writter(line_buffer, 1, line_bytes, file, offset);
+		data_addr += line_size;
+		offset -= line_bytes;
+	}
+
+	return 0;
 }
 
 //---------------------------------------------------------------------------------------------------
 
-//TODO ON READ/WRITE, THE SYSTEM MUST ACCOUNT FOR LESS THAN 4 BYTES LINE WIDTH (Pending)
+static int _read_bmp(asset_image* asset, void* file, medusa_util_rw reader){
+	header_bmp header = {0}; reader(&header, sizeof(header_bmp), 1, file, 0);
+	_validate_and_load_header(asset, &header);
 
-int medusa_image_io_read_bmp(asset_image* asset, void* data){
-	int code = _validate_and_load_header(asset, data);
-	if(code < 0){ return code; }
-
-	uint8_t* steppable_data = data;
-	steppable_data += sizeof(header_bmp);
-
-	if((code & IMAGE_COMMON_CODE_MISSING_PALT) == 0){//If no palette error was thrown
-		memcpy(asset->palette, steppable_data, asset->palette_size);
-	}
-
-	steppable_data += medusa_image_calc_palette_size(asset);
-
-	if((code & IMAGE_COMMON_CODE_MISSING_DATA) == 0){//If no data error was thrown
-		memcpy(asset->data, steppable_data, asset->data_size);
-		_fix_bitmap_asset(asset);
-	}
-
-	return code;
-}
-
-int medusa_image_io_write_bmp(asset_image* asset, void* data){
-	_asset_to_header(asset, data);
-
+	medusa_image_update_effective_sizes(asset);
 	int code = medusa_image_validate_buffers(asset);
 
-	uint8_t* steppable_data = data;
-	steppable_data += sizeof(header_bmp);
-
-	if((code & IMAGE_COMMON_CODE_MISSING_PALT) == 0){//If no palette error was thrown
-		memcpy(steppable_data, asset->palette, asset->palette_size);
-	} else if(asset->meta.palette_entries){
-		medusa_image_handler_load_default_palette(asset, steppable_data);
-	}
-
-	steppable_data += medusa_image_calc_palette_size(asset);
-
-	if((code & IMAGE_COMMON_CODE_MISSING_DATA) == 0){//If no data error was thrown
-		_fix_bitmap_anonymous(asset, steppable_data);
-	}
-
-	return code;
-}
-
-int medusa_image_io_read_bmp_file(asset_image* asset, FILE* file){
-	header_bmp header = {0}; _seek_and_read(&header, sizeof(header_bmp), 1, file, 0);
-
-	int code = _validate_and_load_header(asset, &header);
 	if(code < 0){ return code; }
 
 	int file_offset = sizeof(header_bmp);
 
 	if((code & IMAGE_COMMON_CODE_MISSING_PALT) == 0){//If no palette error was thrown
-		_seek_and_read(asset->palette, 1, asset->palette_size, file, file_offset);
+		reader(asset->palette, 1, asset->palette_size, file, file_offset);
 	}
 
-	file_offset += medusa_image_calc_palette_size(asset);
+	file_offset += asset->effective_palette_size;
 
 	if((code & IMAGE_COMMON_CODE_MISSING_DATA) == 0){//If no data error was thrown
 		if(header.bits_per_pixel == 32){ file_offset = header.header_offset; }
-		code |= _read_file_lines(asset, file, file_offset);
+		code |= _read_lines(asset, file, file_offset, reader);
 	}
 
 	return code;
 }
 
-int medusa_image_io_write_bmp_file(asset_image* asset, FILE* file){
-	header_bmp header = {0}; _asset_to_header(asset, &header);
-	_seek_and_write(&header, sizeof(header_bmp), 1, file, 0);
-
+static int _write_bmp(asset_image* asset, void* file, medusa_util_rw writter){
+	medusa_image_update_effective_sizes(asset);
 	int code = medusa_image_validate_buffers(asset);
 
 	int file_offset = sizeof(header_bmp);
-	int palette_size = medusa_image_calc_palette_size(asset);
 
 	if((code & IMAGE_COMMON_CODE_MISSING_PALT) == 0){//If no palette error was thrown
-		_seek_and_write(asset->palette, 1, asset->palette_size, file, file_offset);
+		writter(asset->palette, 1, asset->effective_palette_size, file, file_offset);
 	} else if(asset->meta.palette_entries){
-		uint8_t palette[palette_size];
-		medusa_image_handler_load_default_palette(asset, palette);
-		_seek_and_write(palette, 1, palette_size, file, file_offset);
+		void* prev_palette = asset->palette;
+		uint8_t palette[asset->effective_palette_size];
+
+		asset->palette = palette;
+		medusa_image_handler_load_default_palette(asset);
+		asset->palette = prev_palette;
+
+		writter(palette, 1, asset->effective_palette_size, file, file_offset);
 	}
 
-	file_offset += palette_size;
+	file_offset += asset->effective_palette_size;
 
 	if((code & IMAGE_COMMON_CODE_MISSING_DATA) == 0){//If no data error was thrown
-		code |= _write_file_lines(asset, file, file_offset);
+		code |= _write_lines(asset, file, file_offset, writter);
 	}
 
+	header_bmp header = {0}; _asset_to_header(asset, &header);
+	writter(&header, sizeof(header_bmp), 1, file, 0);
+
 	return code;
+}
+
+//---------------------------------------------------------------------------------------------------
+
+int medusa_image_io_read_bmp(asset_image* asset, void* data){
+	return _read_bmp(asset, data, (medusa_util_rw)medusa_util_seek_and_read_memory);
+}
+
+int medusa_image_io_write_bmp(asset_image* asset, void* data){
+	return _write_bmp(asset, data, (medusa_util_rw)medusa_util_seek_and_write_memory);
+}
+
+int medusa_image_io_read_bmp_file(asset_image* asset, FILE* file){
+	return _read_bmp(asset, file, (medusa_util_rw)medusa_util_seek_and_read_file);
+}
+
+int medusa_image_io_write_bmp_file(asset_image* asset, FILE* file){
+	return _write_bmp(asset, file, (medusa_util_rw)medusa_util_seek_and_write_file);
 }
