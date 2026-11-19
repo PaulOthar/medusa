@@ -2,9 +2,9 @@
 
 #include <string.h>
 
-#include "../../../include/medusa_image/common.h"
-#include "../../../include/medusa_image/handler.h"
-#include "../../../include/medusa_image/util.h"
+#include "medusa_image/common.h"
+#include "medusa_image/handler.h"
+#include "medusa_image/util.h"
 
 //Rule for implementation: Always assume that dest is src
 

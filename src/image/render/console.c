@@ -1,6 +1,6 @@
 #include <stdio.h>
-#include "../../../include/medusa_image/render.h"
-#include "../../../include/medusa_image/util.h"
+#include "medusa_image/render.h"
+#include "medusa_image/util.h"
 
 #define PIXEL_CHAR "▀"
 

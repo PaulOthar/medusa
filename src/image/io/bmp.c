@@ -1,6 +1,6 @@
-#include "../../../include/medusa_image/handler.h"
-#include "../../../include/medusa_image/handler.h"
-#include "../../../include/medusa_image/io.h"
+#include "medusa_image/handler.h"
+#include "medusa_image/handler.h"
+#include "medusa_image/io.h"
 #include "medusa_util.h"
 
 #pragma pack(push, 1)
@@ -196,14 +196,12 @@ static int _write_bmp(asset_image* asset, void* file, medusa_util_rw writter){
 	if((code & IMAGE_COMMON_CODE_MISSING_PALT) == 0){//If no palette error was thrown
 		writter(asset->palette, 1, asset->effective_palette_size, file, file_offset);
 	} else if(asset->meta.palette_entries){
-		void* prev_palette = asset->palette;
-		uint8_t palette[asset->effective_palette_size];
+		int entries = asset->meta.palette_entries;
+		int size = asset->effective_palette_size;
+		uint8_t buffer[asset->effective_palette_size];
+		medusa_image_handler_write_default_palette(entries, size, buffer);
 
-		asset->palette = palette;
-		medusa_image_handler_load_default_palette(asset);
-		asset->palette = prev_palette;
-
-		writter(palette, 1, asset->effective_palette_size, file, file_offset);
+		writter(buffer, 1, size, file, file_offset);
 	}
 
 	file_offset += asset->effective_palette_size;

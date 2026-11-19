@@ -7,7 +7,7 @@
 
 typedef int (*medusa_image_io)(asset_image*, void*);
 
-int medusa_image_io_asset_read(void* source, medusa_image_io reader, void* block);
+int medusa_image_io_read_asset(void* source, medusa_image_io reader, void* block);
 
 //---------------------------------------------------------------------------------------------------
 // Bitmap(.bmp) implementation

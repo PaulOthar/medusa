@@ -1,4 +1,4 @@
-#include "../../../include/medusa_image/util.h"
+#include "medusa_image/util.h"
 
 uint32_t medusa_image_util_pixel_to_greyscale(uint32_t color){
 	uint8_t* argb = (uint8_t*)&color;

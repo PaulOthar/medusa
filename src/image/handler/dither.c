@@ -1,7 +1,7 @@
 #include <stdlib.h>
 
-#include "../../../include/medusa_image/handler.h"
-#include "../../../include/medusa_image/util.h"
+#include "medusa_image/handler.h"
+#include "medusa_image/util.h"
 #include "medusa_util.h"
 //I really should not be depending on malloc for big buffers....... (plys, future me, fix it)
 
@@ -47,6 +47,8 @@ void medusa_image_handler_dither_stupid(asset_image* src, asset_image* dest){
 	GREY_SCALE_BLOCK_START;
 	for(int i = 0; i < size; i++){ gs[i] = (gs[i] >> 7) * 0xff; }
 	GREY_SCALE_BLOCK_END;
+
+	medusa_image_update_effective_sizes(dest);
 }
 
 void medusa_image_handler_dither_gridded(asset_image* src, asset_image* dest){
@@ -77,6 +79,8 @@ void medusa_image_handler_dither_gridded(asset_image* src, asset_image* dest){
 	}
 
 	GREY_SCALE_BLOCK_END;
+
+	medusa_image_update_effective_sizes(dest);
 }
 
 void medusa_image_handler_dither_floyd_steinberg(asset_image* src, asset_image* dest){
@@ -104,6 +108,8 @@ void medusa_image_handler_dither_floyd_steinberg(asset_image* src, asset_image* 
 	}
 
 	GREY_SCALE_BLOCK_END;
+
+	medusa_image_update_effective_sizes(dest);
 }
 
 void medusa_image_handler_dither_atkinson(asset_image* src, asset_image* dest){
@@ -131,6 +137,8 @@ void medusa_image_handler_dither_atkinson(asset_image* src, asset_image* dest){
 	}
 
 	GREY_SCALE_BLOCK_END;
+
+	medusa_image_update_effective_sizes(dest);
 }
 
 void medusa_image_handler_dither_jarvis_judice_ninke(asset_image* src, asset_image* dest){
@@ -171,5 +179,7 @@ void medusa_image_handler_dither_jarvis_judice_ninke(asset_image* src, asset_ima
 	}
 
 	GREY_SCALE_BLOCK_END;
+
+	medusa_image_update_effective_sizes(dest);
 }
 

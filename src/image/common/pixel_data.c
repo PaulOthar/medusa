@@ -1,4 +1,4 @@
-#include "../../../include/medusa_image/common.h"
+#include "medusa_image/common.h"
 
 medusa_image_get_function medusa_image_function_get_palette_index(int bpp){
 	switch(bpp){

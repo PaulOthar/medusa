@@ -9,6 +9,8 @@
 
 int medusa_image_handler_clear(asset_image* asset);
 
+int medusa_image_handler_write_default_palette(int entries, int size, void* buffer);
+
 int medusa_image_handler_load_default_palette(asset_image* asset);
 
 //---------------------------------------------------------------------------------------------------
@@ -18,6 +20,7 @@ int medusa_image_handler_load_default_palette(asset_image* asset);
 int medusa_image_handler_greyscale(asset_image* src, asset_image* dest);
 
 int medusa_image_handler_flip_vertical(asset_image* src, asset_image* dest);
+
 //int medusa_image_handler_flip_horizontal(asset_image* src, asset_image* dest);
 
 int medusa_image_handler_stack(asset_image* src, asset_image* dest, int x_off, int y_off);

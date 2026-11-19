@@ -81,7 +81,13 @@ uint32_t medusa_image_set_pixel_24bpp(asset_image* asset, int pos, uint32_t colo
 // Asset data [Read & Write]
 //---------------------------------------------------------------------------------------------------
 
+void medusa_image_init_data_buffer(asset_image* asset, void* buffer, int size);
+
+void medusa_image_init_palette_buffer(asset_image* asset, void* buffer, int size);
+
 void medusa_image_init_asset(asset_image* asset, int width, int height, int bits_per_pixel);
+
+int medusa_image_assign_buffers(asset_image* asset, void* block);
 
 int medusa_image_create_asset(int width, int height, int bits_per_pixel, void* block);
 
