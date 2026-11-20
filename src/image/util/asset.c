@@ -17,7 +17,8 @@ int medusa_image_util_format_placeholder_palette(asset_image* asset, void* buffe
 }
 
 asset_image* medusa_image_util_read_asset_alloc(void* source, medusa_image_io reader, medusa_util_alloc alloc){
-	void* block = alloc(medusa_image_io_read_asset(source, reader, 0));
+	int size = medusa_image_io_read_asset(source, reader, 0);
+	void* block = alloc(size);
 	if(!block){ return 0; }
 
 	medusa_image_io_read_asset(source, reader, block);

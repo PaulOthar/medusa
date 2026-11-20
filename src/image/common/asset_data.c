@@ -49,6 +49,8 @@ int medusa_image_create_asset(int width, int height, int bits_per_pixel, void* b
 	}
 
 	asset_image* asset = (asset_image*)block;
+	*asset = (asset_image){0};
+
 	medusa_image_init_asset(asset, width, height, bits_per_pixel);
 
 	uint8_t* u8_block = (uint8_t*)block;

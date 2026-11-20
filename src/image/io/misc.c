@@ -9,6 +9,8 @@ int medusa_image_io_read_asset(void* source, medusa_image_io reader, void* block
 	}
 
 	asset_image* asset = (asset_image*)block;
+	asset[0] = (asset_image){0};
+
 	reader(asset, source);
 
 	uint8_t* u8_block = (uint8_t*)block;
@@ -17,6 +19,5 @@ int medusa_image_io_read_asset(void* source, medusa_image_io reader, void* block
 	medusa_image_assign_buffers(asset, u8_block);
 
 	reader(asset, source);
-
 	return 0;
 }
