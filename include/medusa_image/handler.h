@@ -21,7 +21,7 @@ int medusa_image_handler_greyscale(asset_image* src, asset_image* dest);
 
 int medusa_image_handler_flip_vertical(asset_image* src, asset_image* dest);
 
-//int medusa_image_handler_flip_horizontal(asset_image* src, asset_image* dest);
+int medusa_image_handler_flip_horizontal(asset_image* src, asset_image* dest);
 
 int medusa_image_handler_stack(asset_image* src, asset_image* dest, int x_off, int y_off);
 

@@ -44,7 +44,7 @@ int medusa_image_handler_greyscale(asset_image* src, asset_image* dest){
 // Vertical flip
 //---------------------------------------------------------------------------------------------------
 
-void _flip_vertical_bytes(asset_image* src, asset_image* dest){
+static void _flip_vertical_bytes(asset_image* src, asset_image* dest){
 	int width = src->meta.width;
 	int height = src->meta.height;
 
@@ -69,7 +69,7 @@ void _flip_vertical_bytes(asset_image* src, asset_image* dest){
 	}
 }
 
-void _flip_vertical_bits(asset_image* src, asset_image* dest){
+static void _flip_vertical_bits(asset_image* src, asset_image* dest){
 	int width = src->meta.width;
 	int height = src->meta.height;
 
@@ -105,6 +105,47 @@ int medusa_image_handler_flip_vertical(asset_image* src, asset_image* dest){
 
 	if(src->meta.bits_per_pixel >= 8){ _flip_vertical_bytes(src, dest); }
 	else{ _flip_vertical_bits(src, dest); }
+
+	return code;
+}
+
+//---------------------------------------------------------------------------------------------------
+// Horizontal flip
+//---------------------------------------------------------------------------------------------------
+
+static void _flip_horizontal_line(asset_image* src, asset_image* dest, medusa_image_get_function get, medusa_image_set_function set, int line){
+	int width = src->meta.width;
+	int start = width * line;
+	int end = start + width - 1;
+
+	for(; start < end; start++, end--){
+		uint32_t left = get(src, start);
+		uint32_t right = get(src, end);
+
+		set(dest, start, right);
+		set(dest, end, left);
+	}
+}
+
+int medusa_image_handler_flip_horizontal(asset_image* src, asset_image* dest){
+	int code = medusa_image_validate_equivalent(src, dest);
+	if(code & IMAGE_COMMON_CODE_MISSING_DATA){ return code; }//If a data error was thrown
+
+	dest->meta = src->meta;
+
+	medusa_image_get_function getter = medusa_image_function_get_pixel(src->meta.bits_per_pixel);
+	medusa_image_set_function setter = medusa_image_function_set_pixel(src->meta.bits_per_pixel);
+
+	if(src->meta.bits_per_pixel < 16){
+		getter = medusa_image_function_get_palette_index(src->meta.bits_per_pixel);
+		setter = medusa_image_function_set_palette_index(src->meta.bits_per_pixel);
+	}
+
+	int height = src->meta.height;
+
+	for(int i = 0; i < height; i++){
+		_flip_horizontal_line(src, dest, getter, setter, i);
+	}
 
 	return code;
 }

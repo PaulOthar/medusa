@@ -23,14 +23,14 @@ int medusa_image_validate_equivalent(asset_image* ref, asset_image* eq){
 	int code = 0;
 
 	int data_size = ref->effective_data_size;//medusa_image_calc_data_size(ref);
-	if(!eq->data && data_size){//if it doesnt have a buffer, but declared a size
+	if(!eq->data && data_size){//if it does'nt have a buffer, but declared a size
 		code |= IMAGE_COMMON_CODE_MISSING_DATA;
 	} else if(eq->data_size < data_size){//if the declared size is not enough to store
 		code |= IMAGE_COMMON_CODE_INVALID_DATA;
 	}
 
 	int palette_size = ref->effective_palette_size;//medusa_image_calc_palette_size(ref);
-	if(!eq->palette && palette_size){//if it doesnt have a buffer, but declared a size
+	if(!eq->palette && palette_size){//if it does'nt have a buffer, but declared a size
 		code |= IMAGE_COMMON_CODE_MISSING_PALT;
 	} else if(eq->palette_size < palette_size){//if the declared size is not enough to store
 		code |= IMAGE_COMMON_CODE_INVALID_PALT;
