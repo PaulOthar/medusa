@@ -5,7 +5,7 @@
 #include "medusa_util.h"
 //I really should not be depending on malloc for big buffers....... (plys, future me, fix it)
 
-void _greyscale_16bpp(asset_image* asset, int16_t* gsb, int size){
+static void _greyscale_16bpp(asset_image* asset, int16_t* gsb, int size){
 	medusa_image_get_function get_pixel = medusa_image_function_get_pixel(asset->meta.bits_per_pixel);
 
 	for(int i = 0; i < size; i++){
@@ -15,20 +15,26 @@ void _greyscale_16bpp(asset_image* asset, int16_t* gsb, int size){
 	}
 }
 
-void _collapse_image_dither(asset_image* asset, int16_t* gs){
+static void _collapse_image_dither(asset_image* asset, int16_t* gs){
 	for(int y = 0, byte = 0, pushed = 0; y < asset->meta.height; y++){
 		int ysum = asset->meta.width * y;
 		for(int x = 0; x < asset->meta.width; byte++){
-			gs[pushed >> 3] = 0;
-			for(int b = 0; b < 8 && x < asset->meta.width; b++, x++, pushed++){
-				uint8_t bit = gs[x + ysum] && 1;
-				medusa_util_push_bit(asset->data, bit, pushed);
+			int size = 0;
+			uint8_t buffer = 0;
+			for(int b = 0; b < 8 && x < asset->meta.width; b++, x++, size++){
+				uint8_t bit = gs[x + ysum] > 0;
+				buffer |= bit << b;
 			}
+			medusa_util_set_byte(asset->data, byte, 0);
+			medusa_util_copy_bits_new(&buffer, 0, asset->data, pushed, size);
+			pushed += size;
 		}
 	}
 
 	asset->meta.palette_entries = 2;
 	asset->meta.bits_per_pixel = 1;
+
+	medusa_image_update_effective_sizes(asset);
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -47,8 +53,6 @@ void medusa_image_handler_dither_stupid(asset_image* src, asset_image* dest){
 	GREY_SCALE_BLOCK_START;
 	for(int i = 0; i < size; i++){ gs[i] = (gs[i] >> 7) * 0xff; }
 	GREY_SCALE_BLOCK_END;
-
-	medusa_image_update_effective_sizes(dest);
 }
 
 void medusa_image_handler_dither_gridded(asset_image* src, asset_image* dest){
@@ -79,8 +83,6 @@ void medusa_image_handler_dither_gridded(asset_image* src, asset_image* dest){
 	}
 
 	GREY_SCALE_BLOCK_END;
-
-	medusa_image_update_effective_sizes(dest);
 }
 
 void medusa_image_handler_dither_floyd_steinberg(asset_image* src, asset_image* dest){
@@ -108,8 +110,6 @@ void medusa_image_handler_dither_floyd_steinberg(asset_image* src, asset_image* 
 	}
 
 	GREY_SCALE_BLOCK_END;
-
-	medusa_image_update_effective_sizes(dest);
 }
 
 void medusa_image_handler_dither_atkinson(asset_image* src, asset_image* dest){
@@ -137,8 +137,6 @@ void medusa_image_handler_dither_atkinson(asset_image* src, asset_image* dest){
 	}
 
 	GREY_SCALE_BLOCK_END;
-
-	medusa_image_update_effective_sizes(dest);
 }
 
 void medusa_image_handler_dither_jarvis_judice_ninke(asset_image* src, asset_image* dest){
@@ -179,7 +177,5 @@ void medusa_image_handler_dither_jarvis_judice_ninke(asset_image* src, asset_ima
 	}
 
 	GREY_SCALE_BLOCK_END;
-
-	medusa_image_update_effective_sizes(dest);
 }
 
