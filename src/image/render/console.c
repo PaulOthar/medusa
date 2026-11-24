@@ -2,7 +2,10 @@
 #include "medusa_image/render.h"
 #include "medusa_image/util.h"
 
-#define PIXEL_CHAR "▀"
+#define TOP_PIXEL_CHAR "▀"
+#define BOT_PIXEL_CHAR "▄"
+#define FULL_PIXEL_CHAR "█"
+#define EMPTY_PIXEL_CHAR " "
 
 #define COLOR_TOP(RGB) printf("\x1b[38;2;%d;%d;%dm", (RGB >> 16) & 0xff, (RGB >> 8) & 0xff, RGB & 0xff);
 #define COLOR_BOT(RGB) printf("\x1b[48;2;%d;%d;%dm", (RGB >> 16) & 0xff, (RGB >> 8) & 0xff, RGB & 0xff);
@@ -22,7 +25,7 @@ static int _render_dual_line(asset_image* asset, int index, int width){
 		if(top != prev_top){ prev_top = top; COLOR_TOP(prev_top); }
 		if(bottom != prev_bottom){ prev_bottom = bottom; COLOR_BOT(prev_bottom); }
 
-		printf(PIXEL_CHAR);
+		printf(TOP_PIXEL_CHAR);
 	}
 
 	COLOR_RESET;
@@ -40,7 +43,7 @@ static int _render_line(asset_image* asset, int index, int width){
 
 		if(top != prev_top){ prev_top = top; COLOR_TOP(prev_top); }
 
-		printf(PIXEL_CHAR);
+		printf(TOP_PIXEL_CHAR);
 	}
 
 	COLOR_RESET;
