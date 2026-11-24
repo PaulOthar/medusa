@@ -15,6 +15,8 @@ void medusa_util_copy_bits_new(void* src, int src_off, void* dest, int dest_off,
 
 void medusa_util_push_bit(void* dest, int bit, int offset);
 
+void medusa_util_set_byte(void* buffer, int offset, int data);
+
 void medusa_util_switch_bit_position(void* data, int index, int bits_length);
 void medusa_util_switch_bits_positions(void* data, int length, int bits_length);
 

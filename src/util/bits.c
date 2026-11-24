@@ -55,6 +55,11 @@ void medusa_util_push_bit(void* dest, int bit, int offset){
 	_dest[oass.field.byte] = dbyte;
 }
 
+void medusa_util_set_byte(void* buffer, int offset, int data){
+	uint8_t* buff = buffer;
+	buff[offset] = data;
+}
+
 void medusa_util_switch_bit_position(void* data, int index, int bits_length){
 	uint8_t* ptr = data;
 	int mask = (1 << bits_length) - 1;
