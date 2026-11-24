@@ -23,7 +23,7 @@ int medusa_image_handler_flip_vertical(asset_image* src, asset_image* dest);
 
 int medusa_image_handler_flip_horizontal(asset_image* src, asset_image* dest);
 
-int medusa_image_handler_stack(asset_image* src, asset_image* dest, int x_off, int y_off);
+int medusa_image_handler_crop(asset_image* src, asset_image* dest, int x_src, int y_src, int width, int height, int x_dest, int y_dest);
 
 //---------------------------------------------------------------------------------------------------
 // Dither

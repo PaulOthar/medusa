@@ -154,7 +154,7 @@ int medusa_image_handler_flip_horizontal(asset_image* src, asset_image* dest){
 // Other
 //---------------------------------------------------------------------------------------------------
 
-int medusa_image_handler_stack(asset_image* src, asset_image* dest, int x_off, int y_off){
+int medusa_image_handler_crop(asset_image* src, asset_image* dest, int x_src, int y_src, int width, int height, int x_dest, int y_dest){
 	medusa_image_get_function get_func = medusa_image_function_get_pixel(src->meta.bits_per_pixel);
 	medusa_image_set_function set_func = medusa_image_function_set_pixel(dest->meta.bits_per_pixel);
 
@@ -167,18 +167,25 @@ int medusa_image_handler_stack(asset_image* src, asset_image* dest, int x_off, i
 
 	int src_width = src->meta.width, src_height = src->meta.height;
 	int dest_width = dest->meta.width, dest_height = dest->meta.height;
-	int dest_offset = x_off + (y_off * dest_width);
+
+	int src_offset = x_src + (y_src * src_width);
+	int dest_offset = x_dest + (y_dest * dest_width);
 
 	int dw_m_sw = dest_width - src_width;
 	int dh_m_dh = dest_height - src_height;
 
-	int minx = x_off < 0 ? (-x_off) : 0;
-	int maxx = x_off > dw_m_sw ? src_width - (x_off - dw_m_sw) : src_width;
+	int minx = x_dest < 0 ? (-x_dest) : 0;
+	int maxx = x_dest > dw_m_sw ? src_width - (x_dest - dw_m_sw) : src_width;
+	if((maxx - minx) > width && width > 0){ maxx = minx + width; }
 
-	int miny = y_off < 0 ? (-y_off) : 0;
-	int maxy = y_off > dh_m_dh ? src_height - (y_off - dh_m_dh) : src_height;
+	int miny = y_dest < 0 ? (-y_dest) : 0;
+	int maxy = y_dest > dh_m_dh ? src_height - (y_dest - dh_m_dh) : src_height;
+	if((maxy - miny) > height && height > 0){ maxy = miny + height; }
 
-	int src_ptr = minx + (miny * src_width);
+	int minx_src = x_src < 0 ? (-x_src) : 0;
+	int miny_src = y_src < 0 ? (-y_src) : 0;
+
+	int src_ptr = minx_src + (miny_src * src_width) + src_offset;
 	int dest_ptr = minx + (miny * dest_width) + dest_offset;
 
 	int initial_src_ptr = src_ptr;
