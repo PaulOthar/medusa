@@ -1,7 +1,5 @@
-#include "medusa_image/handler.h"
-#include "medusa_image/handler.h"
 #include "medusa_image/io.h"
-#include "medusa_util.h"
+#include "generic_implementation.h"
 
 #pragma pack(push, 1)
 typedef struct /*header_bmp*/{
@@ -24,10 +22,12 @@ typedef struct /*header_bmp*/{
 }header_bmp;
 #pragma pack(pop)
 
+#define MAGIC_NUMBER 0x4D42
+
 //---------------------------------------------------------------------------------------------------
 
 static void _initialize_header(header_bmp* header){
-	header->magic_number = 0x4D42;
+	header->magic_number = MAGIC_NUMBER;
 	header->file_size = sizeof(header_bmp);
 	header->reserved = 0;//Constant
 	header->header_offset = sizeof(header_bmp);//Constant
@@ -71,7 +71,7 @@ static void _header_to_asset(asset_image* asset, header_bmp* header){
 }
 
 static int _validate_and_load_header(asset_image* asset, header_bmp* header){
-	if(header->magic_number != 0x4D42){ return -1; }
+	if(header->magic_number != MAGIC_NUMBER){ return -1; }
 	_header_to_asset(asset, header);
 
 	return 0;
@@ -173,11 +173,7 @@ static int _read_bmp(asset_image* asset, void* file, medusa_util_rw reader){
 
 	int file_offset = sizeof(header_bmp);
 
-	if((code & IMAGE_COMMON_CODE_MISSING_PALT) == 0){//If no palette error was thrown
-		reader(asset->palette, 1, asset->palette_size, file, file_offset);
-	}
-
-	file_offset += asset->effective_palette_size;
+	file_offset += _medusa_file_read_palette(asset, file, reader, file_offset, code);
 
 	if((code & IMAGE_COMMON_CODE_MISSING_DATA) == 0){//If no data error was thrown
 		if(header.bits_per_pixel == 32){ file_offset = header.header_offset; }
@@ -193,18 +189,7 @@ static int _write_bmp(asset_image* asset, void* file, medusa_util_rw writter){
 
 	int file_offset = sizeof(header_bmp);
 
-	if((code & IMAGE_COMMON_CODE_MISSING_PALT) == 0){//If no palette error was thrown
-		writter(asset->palette, 1, asset->effective_palette_size, file, file_offset);
-	} else if(asset->meta.palette_entries){
-		int entries = asset->meta.palette_entries;
-		int size = asset->effective_palette_size;
-		uint8_t buffer[asset->effective_palette_size];
-		medusa_image_handler_write_default_palette(entries, size, buffer);
-
-		writter(buffer, 1, size, file, file_offset);
-	}
-
-	file_offset += asset->effective_palette_size;
+	file_offset += _medusa_file_write_palette(asset, file, writter, file_offset, code);
 
 	if((code & IMAGE_COMMON_CODE_MISSING_DATA) == 0){//If no data error was thrown
 		code |= _write_lines(asset, file, file_offset, writter);
@@ -226,10 +211,10 @@ int medusa_image_io_write_bmp(asset_image* asset, void* data){
 	return _write_bmp(asset, data, (medusa_util_rw)medusa_util_seek_and_write_memory);
 }
 
-int medusa_image_io_read_bmp_file(asset_image* asset, FILE* file){
+int medusa_image_io_read_file_bmp(asset_image* asset, FILE* file){
 	return _read_bmp(asset, file, (medusa_util_rw)medusa_util_seek_and_read_file);
 }
 
-int medusa_image_io_write_bmp_file(asset_image* asset, FILE* file){
+int medusa_image_io_write_file_bmp(asset_image* asset, FILE* file){
 	return _write_bmp(asset, file, (medusa_util_rw)medusa_util_seek_and_write_file);
 }
