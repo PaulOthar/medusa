@@ -11,6 +11,10 @@ int medusa_image_handler_clear(asset_image* asset){
 	return code;
 }
 
+//---------------------------------------------------------------------------------------------------
+// Palette Related
+//---------------------------------------------------------------------------------------------------
+
 static uint32_t default_colors[] = {
 	0xff00ff, 0x010101, 0x818181, 0xffffff,
 	0xff0000, 0xaa0000, 0x550000, 0x2a0000,
@@ -55,3 +59,25 @@ int medusa_image_handler_load_default_palette(asset_image* asset){
 	return written;
 }
 
+static int _manipulate_palette_colors(asset_image* asset, int pos, int size, int src_counter, uint32_t* src, int dest_counter, uint32_t* dest){
+	int slots = asset->palette_size / 4;
+	int end = pos + size;
+
+	int code = 0;
+	if(end > slots){ end = slots; code |= IMAGE_COMMON_CODE_INVALID_PALT; }
+	if(!asset->palette){ code |= IMAGE_COMMON_CODE_MISSING_PALT; return code; }
+
+	for(int i = pos; i < end; i++, src_counter++, dest_counter++){
+		dest[dest_counter] = src[src_counter];
+	}
+
+	return code;
+}
+
+int medusa_image_handler_get_palette_colors(asset_image* asset, int pos, uint32_t* buffer, int size){
+	return _manipulate_palette_colors(asset, pos, size, pos, asset->palette, 0, buffer);
+}
+
+int medusa_image_handler_set_palette_colors(asset_image* asset, int pos, uint32_t* colors, int size){
+	return _manipulate_palette_colors(asset, pos, size, 0, colors, pos, asset->palette);
+}

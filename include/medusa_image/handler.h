@@ -13,6 +13,10 @@ int medusa_image_handler_write_default_palette(int entries, int size, void* buff
 
 int medusa_image_handler_load_default_palette(asset_image* asset);
 
+int medusa_image_handler_get_palette_colors(asset_image* asset, int pos, uint32_t* buffer, int size);
+
+int medusa_image_handler_set_palette_colors(asset_image* asset, int pos, uint32_t* colors, int size);
+
 //---------------------------------------------------------------------------------------------------
 // Manipulation
 //---------------------------------------------------------------------------------------------------

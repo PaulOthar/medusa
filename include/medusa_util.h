@@ -24,7 +24,7 @@ void medusa_util_switch_bits_positions(void* data, int length, int bits_length);
 // Bytes [Read & Write]
 //---------------------------------------------------------------------------------------------------
 
-typedef void* (*medusa_util_rw)(void*, int, int, void*, int);
+typedef void* (*medusa_util_rw)(void* ptr, int size, int length, void* file, int offset);
 
 void medusa_util_seek_and_read_memory(void* ptr, int size, int length, void* block, int offset);
 void medusa_util_seek_and_write_memory(void* ptr, int size, int length, void* block, int offset);

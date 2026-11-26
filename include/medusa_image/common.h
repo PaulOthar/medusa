@@ -4,8 +4,7 @@
 #include <stdint.h>
 
 typedef struct /*metadata_image*/{
-	uint16_t width;
-	uint16_t height;
+	uint16_t width, height;
 	uint8_t bits_per_pixel;
 
 	uint8_t reserved;
